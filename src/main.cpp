@@ -3,6 +3,8 @@
 #include "Heartbeat.h"
 #include "AWSClient.h"
 #include <DHT.h>
+#include <WiFiConnector.h>
+#include <ETH.h>
 
 #define LED 21
 #define DHT_PIN 15     // GPIO onde o DHT11 está conectado
@@ -20,28 +22,9 @@ float umidade = 0;
 
 // Instâncias das classes
 Heartbeat heartbeat("pool.ntp.org", -3, 60000);
-AWSClient awsClient(&heartbeat, THINGNAME, 1000 * 60 * 2); // passa ponteiro do heartbeat, thingname e intervalo
-DHT dht(DHT_PIN, DHT_TYPE);                                // Instância do sensor DHT
-
-void connectWiFi()
-{
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    Serial.println("Connecting to Wi-Fi");
-
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        delay(500);
-        Serial.print(".");
-    }
-
-    Serial.println("\nWiFi conectado!");
-    Serial.print("IP: ");
-    Serial.println(WiFi.localIP());
-
-    // Inicializa o heartbeat após conectar ao WiFi
-    heartbeat.begin();
-}
+AWSClient awsClient(&heartbeat, THINGNAME, 1000 * 60 * 2);        // passa ponteiro do heartbeat, thingname e intervalo
+DHT dht(DHT_PIN, DHT_TYPE);                                       // Instância do sensor DHT
+WiFiConnector wifi(WIFI_SSID, WIFI_PASSWORD, LED_RED, LED_GREEN); // Instância do WiFiConnector
 
 void lerSensorDHT()
 {
@@ -67,12 +50,16 @@ void setup()
     pinMode(LED, OUTPUT);
     // Inicializa o sensor DHT
     dht.begin();
-    Serial.println("=== ESP32 Sensor de Pressão ===");
 
     // Conecta ao WiFi
-    connectWiFi();
+    wifi.connect();
+    Serial.print("Local IP: ");
+    Serial.print(wifi.getLocalIP());
+    heartbeat.begin(); // Inicializa o heartbeat após conectar ao WiFi
 
-    // Conecta ao AWS IoT (agora usando a classe)
+    Serial.println("=== ESP32 Sensor de Pressão ===");
+
+    // Conecta ao AWS IoT
     awsClient.connectAWS();
     // Verifica se conectou com sucesso
     if (awsClient.isConnected())
@@ -87,6 +74,8 @@ void setup()
 
 void loop()
 {
+    wifi.ensureConnection(); // Garante que a conexão WiFi esteja ativa
+
     // Verifica e reconecta se perdeu conexão MQTT
     if (!awsClient.isConnected())
     {
