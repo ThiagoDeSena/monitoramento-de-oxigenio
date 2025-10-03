@@ -84,6 +84,45 @@ void AWSClient::publishMessage(int valorADC, float pressao)
     }
 }
 
+// Publica mensagem MQTT
+void AWSClient::publishMessageDHT(float temperatura, float umidade)
+{
+    // Atualiza o heartbeat
+    heartbeat->update();
+
+    // Verifica se o tempo NTP é válido
+    if (!heartbeat->isTimeValid())
+    {
+        Serial.println("Tempo NTP inválido, pulando publicação...");
+        return;
+    }
+
+    // Monta o JSON
+    StaticJsonDocument<400> doc;
+    doc["timestamp"] = heartbeat->getEpochTime();
+    doc["datetime"] = heartbeat->getDataHoraFormatada();
+    doc["Temperatura"] = temperatura;
+    doc["Umidade"] = umidade;
+    doc["device_id"] = deviceId;
+
+    char jsonBuffer[512];
+    serializeJson(doc, jsonBuffer);
+
+    // Publica no tópico AWS
+    bool published = client.publish(AWS_IOT_PUBLISH_TOPIC, jsonBuffer);
+
+    if (published)
+    {
+        Serial.println("✓ Dados enviados com sucesso:");
+        Serial.println(jsonBuffer);
+        lastPublish = millis(); // Atualiza o tempo do último envio
+    }
+    else
+    {
+        Serial.println("✗ Falha ao enviar dados MQTT");
+    }
+}
+
 // Deve ser chamado periodicamente no loop()
 void AWSClient::loop()
 {
