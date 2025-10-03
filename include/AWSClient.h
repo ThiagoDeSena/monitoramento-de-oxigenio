@@ -34,6 +34,7 @@ public:
     void connectAWS();
     void loop();
     void publishMessage(int valorADC, float pressao);
+    void publishMessageDHT(float temperatura, float umidade);
     bool isConnected();
     unsigned long getLastPublish() const;
     long getPublishInterval() const;
